@@ -65,6 +65,7 @@ import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
 import { ShutdownButton } from "../editor/controls/shutdown-button";
 import {
   Header,
+  OpenTemplateDropDown,
   OpenTutorialDropDown,
   ResourceLinks,
   TruncatedWorkspaceBanner,
@@ -124,6 +125,7 @@ const HomePage: React.FC = () => {
         }}
       >
         <div className="absolute top-3 right-5 flex gap-3 z-50">
+          <OpenTemplateDropDown />
           <OpenTutorialDropDown />
           <ConfigButton showAppConfig={false} />
           <ShutdownButton

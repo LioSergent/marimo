@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import textwrap
 from collections.abc import Callable
 from functools import wraps
@@ -1511,3 +1512,24 @@ def test_trusted_user_config_location_anchors_trust(
 
     assert config["signing"]["trusted_signers"] == {_FAKE_FP: "me"}
     assert config["cache"]["verification"] == "strict"
+
+
+def test_project_config_manager_resolve_template_directories(
+    tmp_path: Path,
+) -> None:
+    absolute = tmp_path.parent / "absolute-templates"
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_content = f"""
+    [tool.marimo.templates]
+    directories = ["templates", "~/shared-templates", '{absolute}']
+    """
+    pyproject_path.write_text(textwrap.dedent(pyproject_content))
+
+    manager = get_default_config_manager(current_path=str(pyproject_path))
+    config = manager.get_config(hide_secrets=False)
+
+    assert config["templates"]["directories"] == [
+        str((tmp_path / "templates").absolute()),
+        os.path.expanduser(os.path.join("~", "shared-templates")),
+        str(absolute),
+    ]

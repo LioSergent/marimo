@@ -3814,6 +3814,8 @@ components:
           $ref: '#/components/schemas/SigningConfig'
         snippets:
           $ref: '#/components/schemas/SnippetsConfig'
+        templates:
+          $ref: '#/components/schemas/TemplatesConfig'
         venv:
           $ref: '#/components/schemas/VenvConfig'
       required:
@@ -4403,6 +4405,14 @@ components:
           default: null
       required: []
       title: OpenGraphMetadata
+      type: object
+    OpenTemplateRequest:
+      properties:
+        templatePath:
+          type: string
+      required:
+      - templatePath
+      title: OpenTemplateRequest
       type: object
     OpenTutorialRequest:
       properties:
@@ -6095,6 +6105,47 @@ components:
       - success
       title: SyncSandboxResponse
       type: object
+    TemplateFile:
+      properties:
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        displayName:
+          type: string
+        name:
+          type: string
+        path:
+          type: string
+      required:
+      - name
+      - path
+      - displayName
+      title: TemplateFile
+      type: object
+    TemplatesConfig:
+      description: "Configuration for templates.\n\n    **Keys.**\n\n    - `directories`:\
+        \ paths to directories containing marimo notebooks to\n        use as templates\
+        \ for new notebooks"
+      properties:
+        directories:
+          items:
+            type: string
+          type: array
+      required: []
+      title: TemplatesConfig
+      type: object
+    TemplatesResponse:
+      properties:
+        files:
+          items:
+            $ref: '#/components/schemas/TemplateFile'
+          type: array
+      required:
+      - files
+      title: TemplatesResponse
+      type: object
     ToolDefinition:
       description: Tool definition compatible with ai-sdk-ui format.
       properties:
@@ -6577,12 +6628,12 @@ components:
       title: VariablesNotification
       type: object
     VenvConfig:
-      description: "Configuration for an external Python environment in edit mode.\n\n\
-        \    Launches the notebook kernel in an existing virtualenv. Applies to\n    single\
-        \ notebooks and directories when editing without `--sandbox`.\n\n    **Keys.**\n\
-        \n    - `path`: path to a virtualenv directory (absolute or relative to\n    \
-        \  pyproject.toml)\n    - `writable`: if true, marimo will manage script metadata\
-        \ (inline\n      dependencies). Defaults to false."
+      description: "Configuration for an external Python environment in edit mode.\n\
+        \n    Launches the notebook kernel in an existing virtualenv. Applies to\n\
+        \    single notebooks and directories when editing without `--sandbox`.\n\n\
+        \    **Keys.**\n\n    - `path`: path to a virtualenv directory (absolute or\
+        \ relative to\n      pyproject.toml)\n    - `writable`: if true, marimo will\
+        \ manage script metadata (inline\n      dependencies). Defaults to false."
       properties:
         path:
           type: string
@@ -7469,6 +7520,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/RunningNotebooksResponse'
           description: Shutdown the current session
+  /api/home/template/open:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenTemplateRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarimoFile'
+          description: Create a new, untitled notebook from a template
+  /api/home/templates:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplatesResponse'
+          description: List template notebooks from the configured templates directories
   /api/home/tutorial/open:
     post:
       requestBody:

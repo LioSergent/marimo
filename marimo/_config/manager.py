@@ -303,6 +303,7 @@ class ProjectConfigManager(PartialMarimoConfigReader):
             project_config = self._resolve_dotenv(project_config)
             project_config = self._resolve_custom_css(project_config)
             project_config = self._resolve_vimrc(project_config)
+            project_config = self._resolve_template_directories(project_config)
             # pyproject.toml is honoured as written apart from trust anchors.
             # Opening a notebook inside a project already means trusting that
             # project, so an allowlist here adds little protection.
@@ -413,6 +414,32 @@ class ProjectConfigManager(PartialMarimoConfigReader):
             **config,
             "keymap": {**keymap, "vimrc": resolved_vimrc},
         }
+
+    def _resolve_template_directories(
+        self, config: PartialMarimoConfig
+    ) -> PartialMarimoConfig:
+        if self.pyproject_path is None:
+            return config
+
+        if "templates" not in config:
+            return config
+
+        templates = config["templates"]
+        directories = templates.get("directories", [])
+
+        if not isinstance(directories, list):
+            return config
+
+        resolved = []
+        for path in directories:
+            expanded = Path(path).expanduser()
+            if expanded.is_absolute():
+                resolved.append(str(expanded))
+            else:
+                resolved.append(
+                    str((self.pyproject_path.parent / expanded).absolute())
+                )
+        return {**config, "templates": {**templates, "directories": resolved}}
 
 
 class EnvConfigManager(PartialMarimoConfigReader):

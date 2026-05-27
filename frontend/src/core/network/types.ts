@@ -137,6 +137,8 @@ export type WorkspaceFilesResponse = schemas["WorkspaceFilesResponse"];
 export type RunningNotebooksResponse = schemas["RunningNotebooksResponse"];
 export type OpenTutorialRequest = schemas["OpenTutorialRequest"];
 export type TutorialId = OpenTutorialRequest["tutorialId"];
+export type TemplatesResponse = schemas["TemplatesResponse"];
+export type OpenTemplateRequest = schemas["OpenTemplateRequest"];
 export type InvokeAiToolRequest = schemas["InvokeAiToolRequest"];
 export type InvokeAiToolResponse = schemas["InvokeAiToolResponse"];
 export type ChatOptions = schemas["ChatOptions"];
@@ -222,6 +224,8 @@ export interface EditRequests {
   ) => Promise<FileDetailsResponse>;
   // Homepage requests
   openTutorial: (request: OpenTutorialRequest) => Promise<MarimoFile>;
+  getTemplates: () => Promise<TemplatesResponse>;
+  openTemplate: (request: OpenTemplateRequest) => Promise<MarimoFile>;
   getRecentFiles: () => Promise<RecentFilesResponse>;
   getWorkspaceFiles: (
     request: WorkspaceFilesRequest,

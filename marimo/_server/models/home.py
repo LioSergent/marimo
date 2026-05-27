@@ -34,6 +34,21 @@ class OpenTutorialRequest(msgspec.Struct, rename="camel"):
     tutorial_id: Tutorial
 
 
+class TemplateFile(msgspec.Struct, rename="camel"):
+    name: str
+    path: str
+    display_name: str
+    description: str | None = None
+
+
+class TemplatesResponse(msgspec.Struct, rename="camel"):
+    files: list[TemplateFile]
+
+
+class OpenTemplateRequest(msgspec.Struct, rename="camel"):
+    template_path: str
+
+
 class WorkspaceFilesRequest(msgspec.Struct, rename="camel"):
     include_markdown: bool = False
 

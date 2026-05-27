@@ -1815,6 +1815,80 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/home/template/open": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["OpenTemplateRequest"];
+        };
+      };
+      responses: {
+        /** @description Create a new, untitled notebook from a template */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["MarimoFile"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/home/templates": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List template notebooks from the configured templates directories */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["TemplatesResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/home/tutorial/open": {
     parameters: {
       query?: never;
@@ -6117,6 +6191,7 @@ export interface components {
       sharing?: components["schemas"]["SharingConfig"];
       signing?: components["schemas"]["SigningConfig"];
       snippets?: components["schemas"]["SnippetsConfig"];
+      templates?: components["schemas"]["TemplatesConfig"];
       venv?: components["schemas"]["VenvConfig"];
     };
     /** MarimoExceptionRaisedError */
@@ -6460,6 +6535,10 @@ export interface components {
       image?: string | null;
       /** @default null */
       title?: string | null;
+    };
+    /** OpenTemplateRequest */
+    OpenTemplateRequest: {
+      templatePath: string;
     };
     /** OpenTutorialRequest */
     OpenTutorialRequest: {
@@ -7538,6 +7617,30 @@ export interface components {
       /** @default false */
       restartRequired?: boolean;
       success: boolean;
+    };
+    /** TemplateFile */
+    TemplateFile: {
+      /** @default null */
+      description?: string | null;
+      displayName: string;
+      name: string;
+      path: string;
+    };
+    /**
+     * TemplatesConfig
+     * @description Configuration for templates.
+     *
+     *         **Keys.**
+     *
+     *         - `directories`: paths to directories containing marimo notebooks to
+     *             use as templates for new notebooks
+     */
+    TemplatesConfig: {
+      directories?: string[];
+    };
+    /** TemplatesResponse */
+    TemplatesResponse: {
+      files: components["schemas"]["TemplateFile"][];
     };
     /**
      * ToolDefinition

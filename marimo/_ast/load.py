@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
 
@@ -185,24 +185,54 @@ def load_app(filename: str | Path | None) -> App | None:
     if filename is None:
         return None
 
-    path = Path(filename)
-    handler = get_notebook_serializer(path)
-
     contents = _maybe_contents(filename)
     if not contents:
         return None
 
+    return load_app_from_contents(contents, filename)
+
+
+def load_app_from_contents(
+    contents: str, filename: str | Path | None = None
+) -> App | None:
+    """Load and return app from the source code of a marimo notebook.
+
+    Args:
+        contents: Source code of a marimo notebook
+        filename: Path the source code belongs to, if any. Used to pick the
+            serializer (Python or Markdown); defaults to Python.
+
+    Returns:
+        The marimo App instance if the contents are valid code,
+        None if they are empty or contain only comments.
+
+    Raises:
+        MarimoFileError: If the contents don't define a valid marimo app
+        SyntaxError: If the contents contain a syntax error
+    """
+    if not contents.strip():
+        return None
+
+    filepath = str(filename) if filename is not None else None
+    handler = get_notebook_serializer(Path(filepath or "notebook.py"))
+    name = filepath or "<source>"
+
     try:
-        notebook_ir = handler.deserialize(contents, filepath=str(path))
+        notebook_ir = handler.deserialize(contents, filepath=filepath)
         if notebook_ir and is_non_marimo_python_script(notebook_ir):
             # Should fail instead of overriding contents
             raise NonMarimoPythonScriptError(
-                f"Python script {path} is not a marimo notebook."
+                f"Python script {name} is not a marimo notebook."
             )
 
         if not notebook_ir.valid:
-            LOGGER.error(f"Notebook {path} is not a valid marimo notebook.")
+            LOGGER.error(f"Notebook {name} is not a valid marimo notebook.")
             return None
+
+        if filepath is None:
+            # The parser names sources without a file `<marimo>`; the app
+            # should have no filename instead.
+            notebook_ir = replace(notebook_ir, filename=None)
 
         app = load_notebook_ir(notebook_ir)
         app._cell_manager.ensure_one_cell()

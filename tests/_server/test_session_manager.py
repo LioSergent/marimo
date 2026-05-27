@@ -1041,3 +1041,64 @@ async def test_closed_startup_cannot_be_attached(
     finally:
         release.set()
         await session_manager.shutdown()
+
+
+TEMPLATE_CONTENTS = dedent(
+    '''
+    """My template."""
+
+    import marimo
+
+    app = marimo.App(width="full")
+
+
+    @app.cell
+    def _():
+        x = 1
+        return (x,)
+
+
+    if __name__ == "__main__":
+        app.run()
+    '''
+)
+
+
+def test_new_file_key(session_manager: SessionManager) -> None:
+    key = session_manager.new_file_key()
+    assert key.startswith(NEW_FILE)
+    assert key != session_manager.new_file_key()
+
+    app = session_manager.app_manager(key).app
+    assert [cell.code for cell in app.cell_manager.cell_data()] == [""]
+
+
+def test_new_file_key_with_contents(session_manager: SessionManager) -> None:
+    key = session_manager.new_file_key(TEMPLATE_CONTENTS)
+
+    app_manager = session_manager.app_manager(key)
+    assert app_manager.filename is None
+    assert app_manager.app.config.width == "full"
+    assert [
+        cell.code for cell in app_manager.app.cell_manager.cell_data()
+    ] == ["x = 1"]
+
+    # Loading again (e.g. a page reload) seeds the notebook again
+    app = session_manager.app_manager(key).app
+    assert [cell.code for cell in app.cell_manager.cell_data()] == ["x = 1"]
+
+
+def test_new_file_key_evicts_oldest_contents(
+    session_manager: SessionManager,
+) -> None:
+    from marimo._server import session_manager as session_manager_module
+
+    keys = [
+        session_manager.new_file_key(TEMPLATE_CONTENTS)
+        for _ in range(session_manager_module._MAX_NEW_FILE_CONTENTS + 1)
+    ]
+
+    oldest = session_manager.app_manager(keys[0]).app
+    assert [cell.code for cell in oldest.cell_manager.cell_data()] == [""]
+    newest = session_manager.app_manager(keys[-1]).app
+    assert [cell.code for cell in newest.cell_manager.cell_data()] == ["x = 1"]

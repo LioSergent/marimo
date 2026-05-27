@@ -11,15 +11,18 @@ from starlette.authentication import requires
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
+from marimo._server import notebook_templates
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.models.home import (
     MarimoFile,
+    OpenTemplateRequest,
     OpenTutorialRequest,
     RecentFilesResponse,
     RunningNotebooksResponse,
     ShutdownSessionRequest,
+    TemplatesResponse,
     WorkspaceFilesRequest,
     WorkspaceFilesResponse,
 )
@@ -302,3 +305,60 @@ async def tutorial(
         name=os.path.basename(path.absolute_name),
         path=path.absolute_name,
     )
+
+
+@router.get("/templates")
+@requires("edit")
+async def list_templates(
+    *,
+    request: Request,
+) -> TemplatesResponse:
+    """
+    responses:
+        200:
+            description: List template notebooks from the configured templates directories
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/TemplatesResponse"
+    """
+    app_state = AppState(request)
+    directories = notebook_templates.get_template_directories(
+        app_state.config_manager.get_config()
+    )
+    files = await asyncio.to_thread(
+        notebook_templates.list_templates, directories
+    )
+    return TemplatesResponse(files=files)
+
+
+@router.post("/template/open")
+@requires("edit")
+async def open_template(
+    *,
+    request: Request,
+) -> MarimoFile:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/OpenTemplateRequest"
+    responses:
+        200:
+            description: Create a new, untitled notebook from a template
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/MarimoFile"
+    """
+    body = await parse_request(request, cls=OpenTemplateRequest)
+    app_state = AppState(request)
+    directories = notebook_templates.get_template_directories(
+        app_state.config_manager.get_config()
+    )
+    contents = await asyncio.to_thread(
+        notebook_templates.read_template, body.template_path, directories
+    )
+    key = app_state.session_manager.new_file_key(contents)
+    return MarimoFile(name=os.path.basename(body.template_path), path=key)

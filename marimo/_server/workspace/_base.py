@@ -75,16 +75,22 @@ class NotebookWorkspace(abc.ABC):
         self,
         key: MarimoFileKey,
         defaults: AppDefaults | None = None,
+        initial_contents: str | None = None,
     ) -> AppFileManager:
         """Load the notebook for the given key into an `AppFileManager`.
 
         Built on top of :meth:`resolve` — subclasses customize `resolve` and
         inherit the right `load` semantics for free.
+
+        `initial_contents` seeds a new (untitled) notebook, e.g. from a
+        template; it is ignored for keys that resolve to a file.
         """
         defaults = defaults or AppDefaults()
         resolved = self.resolve(key)
         if resolved is None:
-            return AppFileManager(None, defaults=defaults)
+            return AppFileManager(
+                None, defaults=defaults, initial_contents=initial_contents
+            )
         return AppFileManager(resolved, defaults=defaults)
 
     def get_single_app_file_manager(

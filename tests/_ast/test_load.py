@@ -493,3 +493,30 @@ def test_extensionless_non_marimo_file_still_rejected(tmp_path):
 
     with pytest.raises(ValueError, match="No notebook serializer"):
         load.get_notebook_status(str(path))
+
+
+class TestLoadAppFromContents:
+    @staticmethod
+    def test_load_app_from_contents() -> None:
+        with open(get_filepath("test_generate_filecontents")) as f:
+            contents = f.read()
+
+        app = load.load_app_from_contents(contents)
+        expected = load.load_app(get_filepath("test_generate_filecontents"))
+        assert app is not None
+        assert expected is not None
+        assert list(app._cell_manager.codes()) == list(
+            expected._cell_manager.codes()
+        )
+
+    @staticmethod
+    def test_load_app_from_contents_empty() -> None:
+        assert load.load_app_from_contents("  \n") is None
+
+    @staticmethod
+    def test_load_app_from_contents_non_marimo() -> None:
+        with open(get_filepath("test_non_marimo")) as f:
+            contents = f.read()
+
+        with pytest.raises(MarimoFileError):
+            load.load_app_from_contents(contents)

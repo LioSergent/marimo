@@ -692,6 +692,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as EnvironmentInfo;
   };
   public openTutorial = throwNotImplemented;
+  public getTemplates = throwNotImplemented;
+  public openTemplate = throwNotImplemented;
   public getRecentFiles = throwNotImplemented;
   public getWorkspaceFiles = throwNotImplemented;
   public getRunningNotebooks = throwNotImplemented;

@@ -213,3 +213,66 @@ def test_manifest_and_cell_saves_preserve_each_other(
     assert [cell.code for cell in saved.app.cell_manager.cell_data()] == [
         "x = 2"
     ]
+
+
+_TEMPLATE_SOURCE = """# /// script
+# dependencies = ["marimo", "polars"]
+# ///
+\"\"\"A template.\"\"\"
+
+import marimo
+
+app = marimo.App(width="full")
+
+
+@app.cell
+def _():
+    x = 1
+    return (x,)
+"""
+
+
+def test_new_notebook_with_initial_contents() -> None:
+    fm = AppFileManager(None, initial_contents=_TEMPLATE_SOURCE)
+    assert fm.filename is None
+    assert fm.app.config.width == "full"
+    assert [cell.code for cell in fm.app.cell_manager.cell_data()] == ["x = 1"]
+
+
+def test_initial_contents_ignored_for_existing_file(tmp_path: Path) -> None:
+    nb = _write_notebook(tmp_path / "nb.py")
+    fm = AppFileManager(nb, initial_contents=_TEMPLATE_SOURCE)
+    assert fm.app.config.width != "full"
+
+
+@pytest.mark.parametrize("manage_script_metadata", [False, True])
+def test_save_new_notebook_keeps_initial_header(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    manage_script_metadata: bool,
+) -> None:
+    from marimo._config.settings import GLOBAL_SETTINGS
+
+    monkeypatch.setattr(
+        GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", manage_script_metadata
+    )
+    fm = AppFileManager(None, initial_contents=_TEMPLATE_SOURCE)
+    fm.rename(tmp_path / "saved.py")
+
+    saved = (tmp_path / "saved.py").read_text()
+    assert saved.startswith(
+        '# /// script\n# dependencies = ["marimo", "polars"]\n# ///\n'
+        '"""A template."""'
+    )
+
+
+def test_save_new_notebook_in_sandbox_mode_adds_header(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._config.settings import GLOBAL_SETTINGS
+
+    monkeypatch.setattr(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", True)
+    fm = new_notebook()
+    fm.rename(tmp_path / "saved.py")
+
+    assert (tmp_path / "saved.py").read_text().startswith("# /// script")

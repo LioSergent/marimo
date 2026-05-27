@@ -9,6 +9,7 @@ file watching, and LSP server management.
 from __future__ import annotations
 
 import asyncio
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -62,6 +63,9 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 _STARTUP_RECONNECT_SECONDS = 120.0
+
+# How many template-seeded new notebooks to remember (see `new_file_key`).
+_MAX_NEW_FILE_CONTENTS = 32
 
 
 @dataclass
@@ -163,6 +167,12 @@ class SessionManager:
         self._event_bus = SessionEventBus()
         self._event_bus.subscribe(RecentsTrackerListener(self.recents))
 
+        # Source code that new (untitled) notebooks are seeded with, keyed by
+        # their `__new__` file key. Entries are kept rather than consumed on
+        # first load, so that reloading the tab re-seeds the notebook instead
+        # of showing a blank one; the oldest entries are evicted.
+        self._new_file_contents: dict[MarimoFileKey, str] = {}
+
         # Initialize file watching components
         self._watcher_manager = FileWatcherManager()
         self.watch = watch
@@ -183,12 +193,29 @@ class SessionManager:
         """Get all sessions as a dict."""
         return self._repository.sessions
 
+    def new_file_key(self, contents: str | None = None) -> MarimoFileKey:
+        """Create a file key for a new (untitled) notebook.
+
+        If `contents` is given, the notebook is seeded with that source code
+        (e.g. a template) when it is opened.
+        """
+        key = f"{NEW_FILE}{uuid.uuid4()}"
+        if contents is not None:
+            self._new_file_contents[key] = contents
+            while len(self._new_file_contents) > _MAX_NEW_FILE_CONTENTS:
+                del self._new_file_contents[
+                    next(iter(self._new_file_contents))
+                ]
+        return key
+
     def app_manager(self, key: MarimoFileKey) -> AppFileManager:
         """Get the app manager for the given key."""
         defaults = AppDefaults.from_config_manager(self._config_manager)
         if self.mode is SessionMode.EDIT and not key.startswith(NEW_FILE):
             self.workspace.register_allowed_path(key)
-        return self.workspace.load(key, defaults)
+        return self.workspace.load(
+            key, defaults, initial_contents=self._new_file_contents.get(key)
+        )
 
     def connection_lock(
         self, session_id: SessionId, file_key: MarimoFileKey
@@ -350,7 +377,11 @@ class SessionManager:
         defaults = AppDefaults.from_config_manager(self._config_manager)
         if self.mode is SessionMode.EDIT and not file_key.startswith(NEW_FILE):
             self.workspace.register_allowed_path(file_key)
-        app_file_manager = self.workspace.load(file_key, defaults)
+        app_file_manager = self.workspace.load(
+            file_key,
+            defaults,
+            initial_contents=self._new_file_contents.get(file_key),
+        )
 
         # Create the session
         from marimo._runtime.commands import AppMetadata

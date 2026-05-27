@@ -72,6 +72,7 @@ class AppFileManager:
         *,
         storage: StorageInterface | None = None,
         defaults: AppDefaults | None = None,
+        initial_contents: str | None = None,
     ) -> None:
         self._filename = _maybe_path(filename)
 
@@ -81,7 +82,7 @@ class AppFileManager:
         self._defaults = defaults or AppDefaults()
 
         # Load the app
-        self.app = self._load_app(self.path)
+        self.app = self._load_app(self.path, initial_contents=initial_contents)
 
         # Track the last saved content to avoid reloading our own writes
         self._last_saved_content: str | None = None
@@ -234,8 +235,13 @@ class AppFileManager:
             elif path.exists():
                 header = handler.extract_header(path)
 
-            # For new .py files in sandbox mode, generate header with marimo
-            if header is None and str(path).endswith(".py"):
+            # For new .py files in sandbox mode, generate header with marimo,
+            # unless the notebook already has one (e.g. from a template)
+            if (
+                header is None
+                and not (notebook.header and notebook.header.value)
+                and str(path).endswith(".py")
+            ):
                 from marimo._config.settings import GLOBAL_SETTINGS
 
                 if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
@@ -273,17 +279,26 @@ class AppFileManager:
 
             return contents
 
-    def _load_app(self, path: str | None) -> InternalApp:
+    def _load_app(
+        self,
+        path: str | None,
+        initial_contents: str | None = None,
+    ) -> InternalApp:
         """Load app from storage.
 
         Args:
             path: Path to load from (None for new notebooks)
+            initial_contents: Source code to seed a new notebook with (e.g.
+                from a template); ignored when `path` is set
 
         Returns:
             Loaded InternalApp instance
         """
         # Load app using existing loader
-        app = load.load_app(path)
+        if path is None and initial_contents is not None:
+            app = load.load_app_from_contents(initial_contents)
+        else:
+            app = load.load_app(path)
         default = overloads_from_env()
 
         if app is None:

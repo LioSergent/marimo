@@ -6,13 +6,16 @@ import os
 import sys
 import tempfile
 import textwrap
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import (
+    NEW_FILE,
     DirectoryWorkspace,
     FixedFilesWorkspace,
 )
@@ -20,6 +23,8 @@ from marimo._session.model import SessionMode
 from tests._server.mocks import get_session_manager, token_header, with_session
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from starlette.testclient import TestClient
 
 SESSION_ID = "session-123"
@@ -593,3 +598,111 @@ def test_running_notebooks_handles_files_outside_directory(
                 finally:
                     session_manager.workspace = original_workspace
                     session.app_file_manager.filename = original_filename
+
+
+TEMPLATE = textwrap.dedent(
+    '''
+    """My template."""
+
+    import marimo
+
+    app = marimo.App(width="full")
+
+
+    @app.cell
+    def _():
+        x = 1
+        return (x,)
+
+
+    if __name__ == "__main__":
+        app.run()
+    '''
+)
+
+
+@contextmanager
+def templates_directory(client: TestClient) -> Iterator[Path]:
+    """A temporary directory configured as the templates directory."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        config_manager = client.app.state.config_manager  # type: ignore
+        with patch.object(
+            config_manager,
+            "get_config",
+            return_value={"templates": {"directories": [tmp_dir]}},
+        ):
+            yield Path(tmp_dir)
+
+
+@with_session(SESSION_ID)
+def test_list_templates_not_configured(client: TestClient) -> None:
+    response = client.get("/api/home/templates", headers=HEADERS)
+    assert response.status_code == 200
+    assert response.json() == {"files": []}
+
+
+@with_session(SESSION_ID)
+def test_list_templates(client: TestClient) -> None:
+    with templates_directory(client) as tmp_dir:
+        (tmp_dir / "my_template.py").write_text(TEMPLATE)
+        response = client.get("/api/home/templates", headers=HEADERS)
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "files": [
+            {
+                "name": "my_template.py",
+                "path": str(tmp_dir / "my_template.py"),
+                "displayName": "my_template",
+                "description": "My template.",
+            }
+        ]
+    }
+
+
+@with_session(SESSION_ID)
+def test_open_template(client: TestClient) -> None:
+    with templates_directory(client) as tmp_dir:
+        template = tmp_dir / "my_template.py"
+        template.write_text(TEMPLATE)
+        response = client.post(
+            "/api/home/template/open",
+            headers=HEADERS,
+            json={"templatePath": str(template)},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "my_template.py"
+    assert data["path"].startswith(NEW_FILE)
+
+    # Opening the returned key gives an untitled notebook seeded with the
+    # template's code
+    app_manager = get_session_manager(client).app_manager(data["path"])
+    assert app_manager.filename is None
+    assert app_manager.app.config.width == "full"
+    assert [
+        cell.code for cell in app_manager.app.cell_manager.cell_data()
+    ] == ["x = 1"]
+
+
+@with_session(SESSION_ID)
+def test_open_template_path_not_allowed(client: TestClient) -> None:
+    with templates_directory(client):
+        response = client.post(
+            "/api/home/template/open",
+            headers=HEADERS,
+            json={"templatePath": "/etc/passwd"},
+        )
+    assert response.status_code == 403
+
+
+@with_session(SESSION_ID)
+def test_open_template_not_found(client: TestClient) -> None:
+    with templates_directory(client) as tmp_dir:
+        response = client.post(
+            "/api/home/template/open",
+            headers=HEADERS,
+            json={"templatePath": str(tmp_dir / "missing.py")},
+        )
+    assert response.status_code == 404

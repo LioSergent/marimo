@@ -6,6 +6,7 @@ import {
   BarChart2Icon,
   BookMarkedIcon,
   BookOpenIcon,
+  CopyIcon,
   DatabaseIcon,
   FileIcon,
   FileTextIcon,
@@ -31,6 +32,7 @@ import {
 import { Constants } from "@/core/constants";
 import { useRequestClient } from "@/core/network/requests";
 import type { TutorialId } from "@/core/network/types";
+import { useAsyncData } from "@/hooks/useAsyncData";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { openNotebook } from "@/utils/links";
 import { Objects } from "@/utils/objects";
@@ -116,6 +118,55 @@ export const OpenTutorialDropDown: React.FC = () => {
             </DropdownMenuItem>
           ),
         )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+export const OpenTemplateDropDown: React.FC = () => {
+  const { getTemplates, openTemplate } = useRequestClient();
+  const { data } = useAsyncData(() => getTemplates(), []);
+  const templates = data?.files ?? [];
+
+  // Only shown when templates are configured
+  if (templates.length === 0) {
+    return null;
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild={true}>
+        <Button data-testid="open-template-button" size="xs" variant="outline">
+          <CopyIcon className="w-4 h-4 mr-2" />
+          Templates
+          <CaretDownIcon className="w-3 h-3 ml-1" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="bottom" align="end" className="print:hidden">
+        {templates.map((template) => (
+          <DropdownMenuItem
+            key={template.path}
+            onSelect={async () => {
+              const file = await openTemplate({ templatePath: template.path });
+              if (!file) {
+                return;
+              }
+              openNotebook(file.path);
+            }}
+          >
+            <div className="flex flex-col max-w-xs">
+              <span>{template.displayName}</span>
+              {template.description && (
+                <span
+                  className="text-xs text-muted-foreground pr-1 truncate"
+                  title={template.description}
+                >
+                  {template.description}
+                </span>
+              )}
+            </div>
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
