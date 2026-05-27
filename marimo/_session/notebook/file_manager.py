@@ -73,6 +73,7 @@ class AppFileManager:
         *,
         storage: StorageInterface | None = None,
         defaults: AppDefaults | None = None,
+        initial_content: str | None = None,
     ) -> None:
         self._filename = _maybe_path(filename)
 
@@ -82,7 +83,7 @@ class AppFileManager:
         self._defaults = defaults or AppDefaults()
 
         # Load the app
-        self.app = self._load_app(self.path)
+        self.app = self._load_app(self.path, initial_content=initial_content)
 
         # Track the last saved content to avoid reloading our own writes
         self._last_saved_content: str | None = None
@@ -275,15 +276,36 @@ class AppFileManager:
 
             return contents
 
-    def _load_app(self, path: str | None) -> InternalApp:
+    def _load_app(
+        self,
+        path: str | None,
+        initial_content: str | None = None,
+    ) -> InternalApp:
         """Load app from storage.
 
         Args:
             path: Path to load from (None for new notebooks)
+            initial_content: Optional Python source to seed an unnamed notebook
 
         Returns:
             Loaded InternalApp instance
         """
+        if path is None and initial_content:
+            from marimo._ast.load import load_notebook_ir
+            from marimo._session.notebook.serializer import (
+                get_notebook_serializer,
+            )
+
+            handler = get_notebook_serializer(Path("notebook.py"))
+            notebook_ir = handler.deserialize(initial_content, filepath=None)
+            if notebook_ir is not None:
+                seeded_app = load_notebook_ir(
+                    notebook_ir, filepath="notebook.py"
+                )
+                result = InternalApp(seeded_app)
+                result.cell_manager.ensure_one_cell()
+                return result
+
         # Load app using existing loader
         app = load.load_app(path)
         default = overloads_from_env()

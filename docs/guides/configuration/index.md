@@ -43,6 +43,7 @@ You can customize the following settings:
 - Formatting settings
 - [AI assistance](../editor_features/ai_completion.md)
 - [Snippets](snippets.md)
+- [Templates](templates.md)
 - Experimental features
 
 ### User configuration file

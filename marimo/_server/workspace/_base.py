@@ -35,6 +35,18 @@ class NotebookWorkspace(abc.ABC):
     directory scanning, and security validation.
     """
 
+    _pending_template_content: dict[str, str]
+
+    def register_pending_template(self, token: str, content: str) -> None:
+        """Store template content to be consumed on next load of that token."""
+        if not hasattr(self, "_pending_template_content"):
+            self._pending_template_content = {}
+        self._pending_template_content[token] = content
+
+    def consume_pending_template(self, token: str) -> None:
+        """Remove a pending template entry once the session has consumed it."""
+        getattr(self, "_pending_template_content", {}).pop(token, None)
+
     @property
     def directory(self) -> str | None:
         """The root directory of this workspace, if any."""
@@ -73,8 +85,12 @@ class NotebookWorkspace(abc.ABC):
         """
         defaults = defaults or AppDefaults()
         resolved = self.resolve(key)
+        pending = getattr(self, "_pending_template_content", {})
+        initial_content = pending.get(key, None)
         if resolved is None:
-            return AppFileManager(None, defaults=defaults)
+            return AppFileManager(
+                None, defaults=defaults, initial_content=initial_content
+            )
         return AppFileManager(resolved, defaults=defaults)
 
     def get_single_app_file_manager(

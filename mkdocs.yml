@@ -179,6 +179,7 @@ nav:
           - HTML head: guides/configuration/html_head.md
           - Theming: guides/configuration/theming.md
           - Snippets: guides/configuration/snippets.md
+          - Templates: guides/configuration/templates.md
           - i18n: guides/configuration/internationalization.md
       - Extending marimo:
           - Extending marimo: guides/integrating_with_marimo/index.md

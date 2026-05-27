@@ -366,6 +366,16 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
+    getTemplates: () => {
+      return getClient().GET("/api/home/templates").then(handleResponse);
+    },
+    openTemplate: (request) => {
+      return getClient()
+        .POST("/api/home/template/open", {
+          body: request,
+        })
+        .then(handleResponse);
+    },
     getRecentFiles: () => {
       return getClient().POST("/api/home/recent_files").then(handleResponse);
     },

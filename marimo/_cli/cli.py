@@ -757,8 +757,6 @@ def new(
         prompt = _get_stdin_contents()
 
     if prompt is not None:
-        import tempfile
-
         from marimo._ai.text_to_notebook import text_to_notebook
 
         try:

@@ -71,6 +71,8 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendUpdateFile: throwNotInEditMode,
     sendFileDetails: throwNotInEditMode,
     openTutorial: throwNotInEditMode,
+    getTemplates: throwNotInEditMode,
+    openTemplate: throwNotInEditMode,
     sendInstallMissingPackages: throwNotInEditMode,
     getRecentFiles: throwNotInEditMode,
     getWorkspaceFiles: throwNotInEditMode,

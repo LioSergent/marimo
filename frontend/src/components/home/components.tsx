@@ -6,6 +6,7 @@ import {
   BarChart2Icon,
   BookMarkedIcon,
   BookOpenIcon,
+  CopyIcon,
   DatabaseIcon,
   FileIcon,
   FileTextIcon,
@@ -20,6 +21,7 @@ import {
   YoutubeIcon,
 } from "lucide-react";
 import type React from "react";
+import { useEffect, useState } from "react";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Constants } from "@/core/constants";
 import { useRequestClient } from "@/core/network/requests";
-import type { TutorialId } from "@/core/network/types";
+import type { TemplateFile, TutorialId } from "@/core/network/types";
 import { openNotebook } from "@/utils/links";
 import { Objects } from "@/utils/objects";
 import { MarimoPlusIcon } from "../icons/marimo-icons";
@@ -115,6 +117,67 @@ export const OpenTutorialDropDown: React.FC = () => {
             </DropdownMenuItem>
           ),
         )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+export const OpenTemplateDropDown: React.FC = () => {
+  const { getTemplates, openTemplate } = useRequestClient();
+  const [templates, setTemplates] = useState<TemplateFile[] | null>(null);
+
+  useEffect(() => {
+    getTemplates().then((resp) => setTemplates(resp?.files ?? []));
+  }, [getTemplates]);
+
+  // null = still loading; hide until we know templates exist
+  if (templates === null || templates.length === 0) {
+    return null;
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild={true}>
+        <Button
+          data-testid="new-from-template-button"
+          size="xs"
+          variant="outline"
+        >
+          <CopyIcon className="w-4 h-4 mr-2" />
+          Templates
+          <CaretDownIcon className="w-3 h-3 ml-1" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="bottom" align="end" className="print:hidden">
+        {templates.map((tpl) => {
+          const descTruncated =
+            tpl.description != null && tpl.description.length > 60;
+          return (
+            <DropdownMenuItem
+              key={tpl.path}
+              onSelect={async () => {
+                const file = await openTemplate({ templatePath: tpl.path });
+                if (file) {
+                  openNotebook(file.path);
+                }
+              }}
+            >
+              <div className="flex flex-col">
+                <span>{tpl.displayName}</span>
+                {tpl.description && (
+                  <span
+                    className="text-xs text-muted-foreground pr-1"
+                    title={descTruncated ? tpl.description : undefined}
+                  >
+                    {descTruncated
+                      ? `${tpl.description.slice(0, 60)}…`
+                      : tpl.description}
+                  </span>
+                )}
+              </div>
+            </DropdownMenuItem>
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );

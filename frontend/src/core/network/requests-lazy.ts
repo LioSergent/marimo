@@ -102,6 +102,8 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   getRunningNotebooks: "startConnection",
   shutdownSession: "startConnection",
   openTutorial: "startConnection",
+  getTemplates: "startConnection",
+  openTemplate: "startConnection",
   getUsageStats: "waitForConnectionOpen",
 
   // These wait for connection

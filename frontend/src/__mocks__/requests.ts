@@ -56,6 +56,8 @@ export const MockRequestClient = {
       sendUpdateFile: vi.fn().mockResolvedValue({}),
       sendFileDetails: vi.fn().mockResolvedValue({}),
       openTutorial: vi.fn().mockResolvedValue({}),
+      getTemplates: vi.fn().mockResolvedValue({ files: [] }),
+      openTemplate: vi.fn().mockResolvedValue({}),
       getRecentFiles: vi.fn().mockResolvedValue({ files: [] }),
       getWorkspaceFiles: vi.fn().mockResolvedValue({ files: [] }),
       getRunningNotebooks: vi.fn().mockResolvedValue({ files: [] }),

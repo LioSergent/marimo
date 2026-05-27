@@ -575,4 +575,100 @@ def test_running_notebooks_handles_files_outside_directory(
                     assert "outside.py" in files[0]["path"]
                 finally:
                     session_manager.workspace = original_workspace
-                    session.app_file_manager.filename = original_filename
+
+
+# ---------------------------------------------------------------------------
+# Template endpoints
+# ---------------------------------------------------------------------------
+
+
+@with_session(SESSION_ID)
+def test_list_templates_not_configured(client: TestClient) -> None:
+    response = client.get("/api/home/templates", headers=HEADERS)
+    assert response.status_code == 200
+    assert response.json() == {"files": []}
+
+
+@with_session(SESSION_ID)
+def test_list_templates(client: TestClient) -> None:
+    from unittest.mock import patch
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        alpha = Path(tmp_dir) / "alpha.py"
+        alpha.write_text('"""Alpha template."""\nimport marimo as mo\n')
+        beta = Path(tmp_dir) / "beta.py"
+        beta.write_text("import marimo as mo\n")
+
+        config_manager = client.app.state.config_manager
+        with patch.object(
+            config_manager,
+            "get_config",
+            return_value={"templates": {"directories": [tmp_dir]}},
+        ):
+            response = client.get("/api/home/templates", headers=HEADERS)
+
+    assert response.status_code == 200
+    files = response.json()["files"]
+    assert len(files) == 2
+    assert files[0]["displayName"] == "alpha"
+    assert files[0]["description"] == "Alpha template."
+    assert files[1]["displayName"] == "beta"
+    assert files[1]["description"] is None
+
+
+@with_session(SESSION_ID)
+def test_open_template_path_not_allowed(client: TestClient) -> None:
+    response = client.post(
+        "/api/home/template/open",
+        headers=HEADERS,
+        json={"templatePath": "/etc/passwd"},
+    )
+    assert response.status_code == 403
+
+
+@with_session(SESSION_ID)
+def test_open_template_not_found(client: TestClient) -> None:
+    from unittest.mock import patch
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        config_manager = client.app.state.config_manager
+        with patch.object(
+            config_manager,
+            "get_config",
+            return_value={"templates": {"directories": [tmp_dir]}},
+        ):
+            response = client.post(
+                "/api/home/template/open",
+                headers=HEADERS,
+                json={
+                    "templatePath": str(Path(tmp_dir) / "missing.py")
+                },
+            )
+
+    assert response.status_code == 404
+
+
+@with_session(SESSION_ID)
+def test_open_template(client: TestClient) -> None:
+    from unittest.mock import patch
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tpl = Path(tmp_dir) / "my_template.py"
+        tpl.write_text("import marimo as mo\n")
+
+        config_manager = client.app.state.config_manager
+        with patch.object(
+            config_manager,
+            "get_config",
+            return_value={"templates": {"directories": [tmp_dir]}},
+        ):
+            response = client.post(
+                "/api/home/template/open",
+                headers=HEADERS,
+                json={"templatePath": str(tpl.resolve())},
+            )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "my_template.py"
+    assert data["path"].startswith("__new__")

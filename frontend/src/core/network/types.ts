@@ -111,6 +111,9 @@ export type WorkspaceFilesResponse = schemas["WorkspaceFilesResponse"];
 export type RunningNotebooksResponse = schemas["RunningNotebooksResponse"];
 export type OpenTutorialRequest = schemas["OpenTutorialRequest"];
 export type TutorialId = OpenTutorialRequest["tutorialId"];
+export type TemplateFile = schemas["TemplateFile"];
+export type TemplatesResponse = schemas["TemplatesResponse"];
+export type OpenTemplateRequest = schemas["OpenTemplateRequest"];
 export type InvokeAiToolRequest = schemas["InvokeAiToolRequest"];
 export type InvokeAiToolResponse = schemas["InvokeAiToolResponse"];
 export type ClearCacheRequest = schemas["ClearCacheRequest"];
@@ -189,6 +192,8 @@ export interface EditRequests {
   sendFileDetails: (request: { path: string }) => Promise<FileDetailsResponse>;
   // Homepage requests
   openTutorial: (request: OpenTutorialRequest) => Promise<MarimoFile>;
+  getTemplates: () => Promise<TemplatesResponse>;
+  openTemplate: (request: OpenTemplateRequest) => Promise<MarimoFile>;
   getRecentFiles: () => Promise<RecentFilesResponse>;
   getWorkspaceFiles: (
     request: WorkspaceFilesRequest,

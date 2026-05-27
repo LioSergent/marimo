@@ -1,10 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import asyncio
 import os
 import pathlib
 import tempfile
+import uuid
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
@@ -16,10 +18,13 @@ from marimo._server.api.utils import parse_request
 from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.models.home import (
     MarimoFile,
+    OpenTemplateRequest,
     OpenTutorialRequest,
     RecentFilesResponse,
     RunningNotebooksResponse,
     ShutdownSessionRequest,
+    TemplateFile,
+    TemplatesResponse,
     WorkspaceFilesRequest,
     WorkspaceFilesResponse,
 )
@@ -295,3 +300,121 @@ async def tutorial(
         name=os.path.basename(path.absolute_name),
         path=path.absolute_name,
     )
+
+
+def _extract_template_description(source: str) -> str | None:
+    try:
+        return ast.get_docstring(ast.parse(source)) or None
+    except SyntaxError:
+        return None
+
+
+@router.get("/templates")
+@requires("edit")
+async def list_templates(
+    *,
+    request: Request,
+) -> TemplatesResponse:
+    """
+    responses:
+        200:
+            description: List template notebooks from the configured templates directory
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/TemplatesResponse"
+    """
+    app_state = AppState(request)
+    config = app_state.config_manager.get_config()
+    templates_cfg = config.get("templates", {})
+    directories = templates_cfg.get("directories", [])
+    if not directories or not isinstance(directories, list):
+        return TemplatesResponse(files=[])
+
+    def _scan_dirs() -> list[TemplateFile]:
+        seen: set[str] = set()
+        result: list[TemplateFile] = []
+        for raw_dir in directories:
+            dir_path = pathlib.Path(raw_dir).expanduser()
+            if not dir_path.is_dir():
+                LOGGER.warning(
+                    "Templates directory %s not found - ignoring", dir_path
+                )
+                continue
+            for p in dir_path.glob("*.py"):
+                resolved = str(p.resolve())
+                if resolved not in seen:
+                    seen.add(resolved)
+                    try:
+                        description = _extract_template_description(
+                            p.read_text(encoding="utf-8")
+                        )
+                    except Exception:
+                        description = None
+                    result.append(
+                        TemplateFile(
+                            name=p.name,
+                            path=resolved,
+                            display_name=p.stem,
+                            description=description,
+                        )
+                    )
+        return sorted(result, key=lambda f: f.display_name)
+
+    files = await asyncio.to_thread(_scan_dirs)
+    return TemplatesResponse(files=files)
+
+
+@router.post("/template/open")
+@requires("edit")
+async def open_template(
+    *,
+    request: Request,
+) -> MarimoFile:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/OpenTemplateRequest"
+    responses:
+        200:
+            description: Open a template notebook
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/MarimoFile"
+    """
+    body = await parse_request(request, cls=OpenTemplateRequest)
+    app_state = AppState(request)
+
+    config = app_state.config_manager.get_config()
+    directories = config.get("templates", {}).get("directories", [])
+
+    def _validate_and_read() -> tuple[str, str]:
+        src = pathlib.Path(body.template_path).resolve()
+        allowed_roots = [
+            pathlib.Path(d).expanduser().resolve()
+            for d in (directories if isinstance(directories, list) else [])
+        ]
+        if not any(src.is_relative_to(root) for root in allowed_roots):
+            raise PermissionError(
+                "Template path is not within a configured templates directory."
+            )
+        if not src.is_file():
+            raise FileNotFoundError(
+                f"Template not found: {body.template_path}"
+            )
+        return src.read_text(encoding="utf-8"), src.name
+
+    try:
+        content, file_name = await asyncio.to_thread(_validate_and_read)
+    except PermissionError as e:
+        raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=str(e))
+    token = f"__new__{uuid.uuid4()}"
+    app_state.session_manager.workspace.register_pending_template(
+        token, content
+    )
+    return MarimoFile(name=file_name, path=token)

@@ -246,6 +246,8 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   sendUpdateFile = throwNotImplemented;
   sendFileDetails = throwNotImplemented;
   openTutorial = throwNotImplemented;
+  getTemplates = throwNotImplemented;
+  openTemplate = throwNotImplemented;
   exportAsHTML = throwNotImplemented;
   exportAsIPYNB = throwNotImplemented;
   exportAsMarkdown = throwNotImplemented;

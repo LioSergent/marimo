@@ -187,6 +187,7 @@ class SessionManager:
         if self.mode is SessionMode.EDIT and not file_key.startswith(NEW_FILE):
             self.workspace.register_allowed_path(file_key)
         app_file_manager = self.workspace.load(file_key, defaults)
+        self.workspace.consume_pending_template(file_key)
 
         # Create the session
         from marimo._runtime.commands import AppMetadata

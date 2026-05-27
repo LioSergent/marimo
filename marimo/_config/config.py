@@ -540,6 +540,19 @@ class SnippetsConfig(TypedDict):
     include_default_snippets: NotRequired[bool]
 
 
+@mddoc
+@dataclass
+class TemplatesConfig(TypedDict):
+    """Configuration for templates.
+
+    **Keys.**
+
+    - `directories`: list of paths to directories containing `.py` marimo template notebooks
+    """
+
+    directories: NotRequired[list[str]]
+
+
 @dataclass
 class DatasourcesConfig(TypedDict):
     """Configuration for datasources panel.
@@ -623,6 +636,7 @@ class MarimoConfig(TypedDict):
     lint: NotRequired[LintConfig]
     experimental: NotRequired[ExperimentalConfigType]
     snippets: NotRequired[SnippetsConfig]
+    templates: NotRequired[TemplatesConfig]
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
     mcp: NotRequired[MCPConfig]
@@ -691,6 +705,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     lint: NotRequired[LintConfig]
     experimental: NotRequired[ExperimentalConfigType]
     snippets: SnippetsConfig
+    templates: NotRequired[TemplatesConfig]
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
     venv: NotRequired[VenvConfig]
